@@ -1,0 +1,21 @@
+{
+  "name": "奥熙的魔方",
+  "short_name": "奥熙魔方",
+  "description": "星空背景下的 N 阶魔方模拟器：打乱、求解、图案模式与自动演示。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#04060a",
+  "theme_color": "#0b0d10",
+  "icons": [
+    { "src": "icons/icon-64.png",  "sizes": "64x64",   "type": "image/png" },
+    { "src": "icons/icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-256.png", "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

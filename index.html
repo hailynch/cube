@@ -1,0 +1,1370 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>奥熙的魔方</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b0d10">
+<meta name="description" content="星空背景下的 N 阶魔方模拟器：打乱、求解、图案模式与自动演示。">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --bg0:#0b0d10; --bg1:#14171d; --panel:#15181e; --panel2:#1b1f26;
+    --line:#242932; --line2:#313845;
+    --text:#e9ebee; --dim:#9aa1ac; --faint:#646b76;
+    --accent:#e3b264; --accent2:#f0d5a4; --good:#57c78a;
+    --sans:'Instrument Sans','Noto Sans SC',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+    --mono:'IBM Plex Mono','Noto Sans SC',ui-monospace,monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    background:radial-gradient(120% 90% at 62% 38%, #0a0d18 0%, #04060a 70%);
+    color:var(--text); font-family:var(--sans); font-size:14px;
+    overflow:hidden; -webkit-font-smoothing:antialiased;
+  }
+  #app{ display:grid; grid-template-columns:312px 1fr; height:100vh; }
+
+  /* ---------- 侧栏 ---------- */
+  #panel{
+    background:linear-gradient(180deg,var(--panel) 0%,#121419 100%);
+    border-right:1px solid var(--line);
+    overflow-y:auto; padding:20px 18px 16px; display:flex; flex-direction:column; gap:22px;
+  }
+  #brand{ display:flex; align-items:center; gap:12px; }
+  #logo{ display:grid; grid-template-columns:9px 9px; grid-template-rows:9px 9px; gap:2px;
+    transform:rotate(-12deg); flex:none; }
+  #logo i:nth-child(1){ background:#cf2438; } #logo i:nth-child(2){ background:#f2f3f5; }
+  #logo i:nth-child(3){ background:#f5c518; } #logo i:nth-child(4){ background:#0aa657; }
+  #brand h1{ font-size:19px; font-weight:600; letter-spacing:.02em; }
+  #brand p{ font-size:12px; color:var(--dim); margin-top:2px; font-variant-numeric:tabular-nums; }
+
+  section{ display:flex; flex-direction:column; gap:10px; }
+  h2{
+    font-size:11px; font-weight:600; color:var(--dim); letter-spacing:.14em;
+    display:flex; align-items:baseline; gap:8px;
+  }
+  h2 span{ color:var(--faint); font-family:var(--mono); font-weight:500; font-size:9px; letter-spacing:.22em; }
+  h2::after{ content:""; flex:1; height:1px; background:var(--line); align-self:center; }
+
+  .meta{ font-size:11.5px; color:var(--dim); font-variant-numeric:tabular-nums; line-height:1.5; }
+
+  #orderRow{ display:flex; gap:8px; }
+  .stepper{
+    width:34px; height:34px; background:var(--panel2); border:1px solid var(--line);
+    color:var(--text); font-size:16px; border-radius:8px; cursor:pointer; font-family:var(--sans);
+  }
+  .stepper:hover{ border-color:var(--line2); background:#20242d; }
+  #ordInput{
+    flex:1; height:34px; background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+    color:var(--text); text-align:center; font-size:15px; font-family:var(--mono);
+    font-variant-numeric:tabular-nums; outline:none; min-width:0;
+  }
+  #ordInput:focus{ border-color:var(--accent); }
+  #presets{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    padding:4px 10px; font-size:12px; font-family:var(--mono); font-variant-numeric:tabular-nums;
+    background:transparent; border:1px solid var(--line); border-radius:999px; color:var(--dim); cursor:pointer;
+  }
+  .chip:hover{ color:var(--text); border-color:var(--line2); }
+  .chip.on{ color:var(--accent2); border-color:var(--accent); background:rgba(227,178,100,.08); }
+
+  .btnRow{ display:flex; gap:8px; }
+  .btn{
+    flex:1; height:36px; border-radius:8px; border:1px solid var(--line2); background:var(--panel2);
+    color:var(--text); font-size:13.5px; font-family:var(--sans); cursor:pointer; font-weight:500;
+    transition:background .12s,border-color .12s,opacity .12s;
+  }
+  .btn:hover:not(:disabled){ background:#232833; border-color:#3a4250; }
+  .btn:disabled{ opacity:.38; cursor:default; }
+  .btn.primary{ background:#20242d; border-color:#3a4250; }
+  .btn.gold{ background:var(--accent); border-color:var(--accent); color:#161206; font-weight:600; }
+  .btn.gold:hover:not(:disabled){ background:var(--accent2); border-color:var(--accent2); }
+
+  .scramRow{ display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--dim); }
+  .scramRow input{
+    width:76px; height:30px; background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+    color:var(--text); text-align:center; font-size:13px; font-family:var(--mono);
+    font-variant-numeric:tabular-nums; outline:none; margin-left:auto;
+  }
+  .scramRow input:focus{ border-color:var(--accent); }
+
+  .patRow{ display:flex; gap:8px; }
+  .patRow input{
+    flex:1; height:36px; background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+    color:var(--text); font-size:13.5px; padding:0 10px; outline:none; min-width:0;
+  }
+  .patRow input:focus{ border-color:var(--accent); }
+  .patRow .btn{ flex:none; width:96px; }
+
+  .speedRow{ display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--dim); }
+  .speedRow input{ flex:1; accent-color:var(--accent); height:16px; min-width:0; }
+  .speedRow span{ font-family:var(--mono); font-size:11px; font-variant-numeric:tabular-nums; width:64px; }
+  #progress{ height:4px; border-radius:2px; background:var(--panel2); overflow:hidden; }
+  #progressBar{ height:100%; width:0%; background:var(--accent); border-radius:2px; transition:width .15s linear; }
+
+  #moveList{
+    display:flex; flex-wrap:wrap; gap:5px; max-height:170px; overflow-y:auto;
+    background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:8px;
+  }
+  #moveList:empty::after{ content:"暂无步骤"; color:var(--faint); font-size:11.5px; }
+  .mv{
+    font-family:var(--mono); font-size:11.5px; padding:2px 7px; border-radius:5px;
+    background:#22262f; color:var(--dim); font-variant-numeric:tabular-nums;
+  }
+  .mv.past{ color:var(--faint); }
+  .mv.cur{ background:rgba(227,178,100,.16); color:var(--accent2); outline:1px solid rgba(227,178,100,.5); }
+
+  #help{ margin-top:auto; display:flex; flex-direction:column; gap:8px; padding-top:16px; border-top:1px solid var(--line); }
+  #help p{ font-size:11.5px; color:var(--dim); line-height:1.65; }
+  #help .foot{ color:var(--faint); font-size:11px; }
+  kbd{ font-family:var(--mono); font-size:10px; background:var(--panel2); border:1px solid var(--line);
+    border-radius:4px; padding:1px 4px; color:var(--text); }
+
+  /* ---------- 画布区 ---------- */
+  #stage{ position:relative; overflow:hidden; }
+  #cv{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  #cv.grabbing{ cursor:grabbing; }
+
+  #status{
+    position:absolute; top:16px; left:16px; display:flex; align-items:center; gap:8px;
+    background:rgba(18,21,26,.78); border:1px solid var(--line); border-radius:999px;
+    padding:6px 13px; font-size:12px; color:var(--text); backdrop-filter:blur(6px);
+    font-variant-numeric:tabular-nums;
+  }
+  #status i{ width:7px; height:7px; border-radius:50%; background:var(--good); flex:none; }
+  #status.busy i{ background:var(--accent); }
+  #status.free i{ background:var(--dim); }
+
+  #hudMove{
+    position:absolute; bottom:22px; left:50%; transform:translateX(-50%);
+    text-align:center; pointer-events:none;
+  }
+  #moveBig{
+    font-family:var(--mono); font-size:32px; font-weight:600; color:var(--accent2);
+    letter-spacing:.04em; min-height:38px; font-variant-numeric:tabular-nums;
+    text-shadow:0 2px 18px rgba(0,0,0,.6);
+  }
+  #moveSub{ font-size:11.5px; color:var(--dim); margin-top:4px; font-variant-numeric:tabular-nums; }
+
+  #dragModePill{
+    position:absolute; bottom:20px; left:18px; display:flex;
+    background:rgba(18,21,26,.78); border:1px solid var(--line); border-radius:999px;
+    padding:3px; backdrop-filter:blur(6px);
+  }
+  #dragModePill button{
+    border:none; background:transparent; color:var(--dim); font-size:12px; font-family:var(--sans);
+    padding:4px 13px; border-radius:999px; cursor:pointer; font-weight:500;
+  }
+  #dragModePill button:hover{ color:var(--text); }
+  #dragModePill button.on{
+    background:rgba(227,178,100,.16); color:var(--accent2); outline:1px solid rgba(227,178,100,.5);
+  }
+
+  #zoomPill{
+    position:absolute; bottom:20px; right:18px; display:flex; gap:2px;
+    background:rgba(18,21,26,.88); border:1px solid var(--line2); border-radius:999px;
+    padding:4px; backdrop-filter:blur(6px); box-shadow:0 4px 20px rgba(0,0,0,.45);
+  }
+  #zoomPill button{
+    border:none; background:transparent; color:var(--text); font-size:19px; font-family:var(--mono);
+    width:38px; height:32px; border-radius:999px; cursor:pointer; line-height:1;
+  }
+  #zoomPill button:hover{ color:var(--accent2); background:rgba(227,178,100,.12); }
+  #zoomPill button#zoomFit{ font-size:12px; font-family:var(--sans); width:auto; padding:0 12px; }
+
+  #hint{
+    position:absolute; top:16px; left:18px; font-size:11px; color:var(--faint);
+    text-align:left; line-height:1.7; pointer-events:none;
+  }
+
+  #toast{
+    position:absolute; top:16px; right:16px; background:rgba(24,28,34,.92);
+    border:1px solid var(--line2); color:var(--text); font-size:12.5px;
+    padding:9px 14px; border-radius:8px; opacity:0; transform:translateY(-4px);
+    transition:opacity .25s,transform .25s; pointer-events:none; max-width:260px;
+  }
+  #toast.show{ opacity:1; transform:none; }
+
+  #nogl{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    text-align:center; color:var(--dim); font-size:14px; padding:40px; line-height:1.8;
+  }
+  #nogl.show{ display:flex; }
+
+  #stage.solvedFlash::before{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    box-shadow:inset 0 0 120px rgba(87,199,138,.28); animation:flash .9s ease-out forwards;
+  }
+  @keyframes flash{ from{ opacity:1; } to{ opacity:0; } }
+
+  @media (max-width:880px){
+    #app{ grid-template-columns:1fr; grid-template-rows:54vh 1fr; }
+    #panel{ border-right:none; border-top:1px solid var(--line); }
+    #moveBig{ font-size:24px; min-height:30px; }
+    #hint{ display:none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="panel">
+    <header id="brand">
+      <div id="logo"><i></i><i></i><i></i><i></i></div>
+      <div>
+        <h1>奥熙的魔方</h1>
+        <p>WebGL · 1 – 500 阶</p>
+      </div>
+    </header>
+
+    <section>
+      <h2>阶数 <span>ORDER</span></h2>
+      <div id="orderRow">
+        <button id="ordMinus" class="stepper" title="减小阶数">−</button>
+        <input id="ordInput" type="number" min="1" max="500" value="3">
+        <button id="ordPlus" class="stepper" title="增大阶数">+</button>
+      </div>
+      <div id="presets"></div>
+      <p id="orderMeta" class="meta"></p>
+    </section>
+
+    <section>
+      <h2>自动模式 <span>AUTO</span></h2>
+      <div class="btnRow">
+        <button id="btnScramble" class="btn primary">随机打乱</button>
+        <button id="btnSolve" class="btn gold">自动还原</button>
+      </div>
+      <div class="btnRow">
+        <button id="btnFinish" class="btn">瞬间完成</button>
+        <button id="btnReset" class="btn">重置</button>
+      </div>
+      <div class="scramRow">
+        <span>打乱步数</span>
+        <input id="scramInput" type="number" min="1" max="500" value="50">
+      </div>
+    </section>
+
+    <section>
+      <h2>图案 <span>PATTERN</span></h2>
+      <div class="patRow">
+        <input id="patInput" type="text" value="LEO" maxlength="12" placeholder="要显示的文字">
+        <button id="btnPattern" class="btn gold">图案打乱</button>
+      </div>
+      <p class="meta">在顶面用蓝色贴纸拼出文字（白底），适合 12 阶以上，阶数越高越清晰。</p>
+    </section>
+
+    <section>
+      <h2>回放 <span>PLAYBACK</span></h2>
+      <div class="btnRow">
+        <button id="btnPlay" class="btn">播放</button>
+        <button id="btnStep" class="btn">单步</button>
+      </div>
+      <label class="speedRow">速度
+        <input id="speed" type="range" min="1" max="25" step="1" value="6">
+        <span id="speedVal">6 步/秒</span>
+      </label>
+      <div id="progress"><div id="progressBar"></div></div>
+      <p id="progressText" class="meta">等待打乱</p>
+    </section>
+
+    <section>
+      <h2>步骤 <span>MOVES</span></h2>
+      <div id="moveList"></div>
+    </section>
+
+    <footer id="help">
+      <p>在魔方表面拖拽可拧动一层 · 空白处或右键拖拽旋转视角 · 滚轮/双指缩放 · 双击画布复位视角 · <kbd>V</kbd> 切换拧动/视角模式 · <kbd>空格</kbd> 播放/暂停 · <kbd>S</kbd> 打乱 · <kbd>R</kbd> 还原</p>
+      <p class="foot">「自动还原」按打乱与拧动步骤的逆序回放，任意阶数都能复原，但不追求最短路径。图案打乱同样可被还原。</p>
+    </footer>
+  </aside>
+
+  <main id="stage">
+    <canvas id="cv"></canvas>
+    <div id="nogl">当前浏览器不支持 WebGL2，请换用较新的 Chrome / Firefox / Safari 打开。</div>
+    <div id="status"><i></i><span>已复原</span></div>
+    <div id="dragModePill">
+      <button id="dmTwist" class="on" title="在魔方上拖拽拧动层（V 切换）">拧动</button>
+      <button id="dmView" title="所有拖拽只旋转视角（V 切换）">视角</button>
+    </div>
+    <div id="zoomPill">
+      <button id="zoomIn" title="放大（滚轮 / 双指捏合也可缩放）">＋</button>
+      <button id="zoomOut" title="缩小（滚轮 / 双指捏合也可缩放）">－</button>
+      <button id="zoomFit" title="恢复默认视角（双击画布也可）">复位视角</button>
+    </div>
+    <div id="hudMove"><div id="moveBig">—</div><div id="moveSub">3 阶 · 已复原</div></div>
+    <div id="hint">魔方上拖 拧动 · 空白处/右键拖 旋转视角<br>V 切换模式 · 滚轮缩放 · 双击复位</div>
+    <div id="toast"></div>
+  </main>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const cv = $('cv'), stage = $('stage');
+const gl = cv.getContext('webgl2', { antialias: true, alpha: true });
+if (!gl) { $('nogl').classList.add('show'); return; }
+
+/* ================= 矩阵（列主序） ================= */
+function m4mul(a, b) {
+  const o = new Float32Array(16);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++)
+    o[c*4+r] = a[r]*b[c*4] + a[4+r]*b[c*4+1] + a[8+r]*b[c*4+2] + a[12+r]*b[c*4+3];
+  return o;
+}
+function m4persp(fov, asp, n, f) {
+  const t = 1 / Math.tan(fov / 2), o = new Float32Array(16);
+  o[0] = t / asp; o[5] = t; o[10] = (f + n) / (n - f); o[11] = -1; o[14] = 2 * f * n / (n - f);
+  return o;
+}
+function m4look(e, c, up) {
+  let z = [e[0]-c[0], e[1]-c[1], e[2]-c[2]]; let l = Math.hypot(z[0],z[1],z[2]);
+  z = [z[0]/l, z[1]/l, z[2]/l];
+  let x = [up[1]*z[2]-up[2]*z[1], up[2]*z[0]-up[0]*z[2], up[0]*z[1]-up[1]*z[0]];
+  l = Math.hypot(x[0],x[1],x[2]); x = [x[0]/l, x[1]/l, x[2]/l];
+  const y = [z[1]*x[2]-z[2]*x[1], z[2]*x[0]-z[0]*x[2], z[0]*x[1]-z[1]*x[0]];
+  const o = new Float32Array(16);
+  o[0]=x[0]; o[1]=y[0]; o[2]=z[0]; o[4]=x[1]; o[5]=y[1]; o[6]=z[1]; o[8]=x[2]; o[9]=y[2]; o[10]=z[2];
+  o[12]=-(x[0]*e[0]+x[1]*e[1]+x[2]*e[2]);
+  o[13]=-(y[0]*e[0]+y[1]*e[1]+y[2]*e[2]);
+  o[14]=-(z[0]*e[0]+z[1]*e[1]+z[2]*e[2]); o[15]=1;
+  return o;
+}
+function m4inv(m) {
+  const a00=m[0],a01=m[1],a02=m[2],a03=m[3], a10=m[4],a11=m[5],a12=m[6],a13=m[7],
+        a20=m[8],a21=m[9],a22=m[10],a23=m[11], a30=m[12],a31=m[13],a32=m[14],a33=m[15],
+    b00=a00*a11-a01*a10, b01=a00*a12-a02*a10, b02=a00*a13-a03*a10,
+    b03=a01*a12-a02*a11, b04=a01*a13-a03*a11, b05=a02*a13-a03*a12,
+    b06=a20*a31-a21*a30, b07=a20*a32-a22*a30, b08=a20*a33-a23*a30,
+    b09=a21*a32-a22*a31, b10=a21*a33-a23*a31, b11=a22*a33-a23*a32;
+  let det = b00*b11-b01*b10+b02*b09+b03*b08-b04*b07+b05*b06;
+  det = 1 / det;
+  const o = new Float32Array(16);
+  o[0]=(a11*b11-a12*b10+a13*b09)*det;  o[1]=(a02*b10-a01*b11-a03*b09)*det;
+  o[2]=(a31*b05-a32*b04+a33*b03)*det;  o[3]=(a22*b04-a21*b05-a23*b03)*det;
+  o[4]=(a12*b08-a10*b11-a13*b07)*det;  o[5]=(a00*b11-a02*b08+a03*b07)*det;
+  o[6]=(a32*b02-a30*b05-a33*b01)*det;  o[7]=(a20*b05-a22*b02+a23*b01)*det;
+  o[8]=(a10*b10-a11*b08+a13*b06)*det;  o[9]=(a01*b08-a00*b10-a03*b06)*det;
+  o[10]=(a30*b04-a31*b02+a33*b00)*det; o[11]=(a21*b02-a20*b04-a23*b00)*det;
+  o[12]=(a11*b07-a10*b09-a12*b06)*det; o[13]=(a00*b09-a01*b07+a02*b06)*det;
+  o[14]=(a31*b01-a30*b03-a32*b00)*det; o[15]=(a20*b03-a21*b01+a22*b00)*det;
+  return o;
+}
+function m4v(m, v) {
+  return [
+    m[0]*v[0]+m[4]*v[1]+m[8]*v[2]+m[12]*v[3],
+    m[1]*v[0]+m[5]*v[1]+m[9]*v[2]+m[13]*v[3],
+    m[2]*v[0]+m[6]*v[1]+m[10]*v[2]+m[14]*v[3],
+    m[3]*v[0]+m[7]*v[1]+m[11]*v[2]+m[15]*v[3],
+  ];
+}
+
+/* ================= 着色器 ================= */
+const ROT_GLSL = `
+vec3 rotAxis(vec3 p, vec3 k, float a){
+  float c = cos(a), s = sin(a);
+  return p*c + cross(k, p)*s + k*dot(k, p)*(1.0 - c);
+}`;
+
+const VS_STK = `#version 300 es
+precision highp float;
+layout(location=0) in vec2 a_corner;
+layout(location=1) in vec3 i_cell;
+layout(location=2) in vec3 i_nrm;
+layout(location=3) in vec3 i_col;
+layout(location=4) in float i_sel;
+uniform mat4 u_vp;
+uniform vec3 u_axis, u_eye;
+uniform float u_angle, u_scale, u_stk, u_lift;
+out vec3 vCol; out vec3 vN; out vec3 vP;
+${ROT_GLSL}
+void main(){
+  vec3 n = i_nrm;
+  vec3 t = abs(n.y) < 0.5 ? vec3(0,1,0) : vec3(1,0,0);
+  vec3 bt = normalize(cross(n, t));
+  vec3 tg = cross(bt, n);
+  vec3 pos = i_cell + n*(1.0 + u_lift) + (tg*a_corner.x + bt*a_corner.y)*u_stk;
+  float a = u_angle * i_sel;
+  pos = rotAxis(pos, u_axis, a);
+  n = rotAxis(n, u_axis, a);
+  vCol = i_col; vN = n; vP = pos * u_scale;
+  gl_Position = u_vp * vec4(vP, 1.0);
+}`;
+
+const FS_STK = `#version 300 es
+precision highp float;
+in vec3 vCol; in vec3 vN; in vec3 vP; in vec2 vUV;
+uniform vec3 u_eye;
+out vec4 o;
+void main(){
+  vec3 n = normalize(vN);
+  vec3 L = normalize(vec3(0.42, 0.85, 0.55));
+  vec3 V = normalize(u_eye - vP);
+  float dif = max(dot(n, L), 0.0);
+  float sp = pow(max(dot(normalize(L + V), n), 0.0), 42.0) * 0.35;
+  float fr = pow(1.0 - max(dot(n, V), 0.0), 3.0) * 0.10;
+  o = vec4(vCol*(0.52 + 0.55*dif) + vec3(sp) + vCol*fr, 1.0);
+}`;
+
+const VS_SHELL = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 a_pos;
+layout(location=1) in vec3 a_nrm;
+layout(location=2) in vec3 i_cell;
+layout(location=3) in float i_sel;
+uniform mat4 u_vp;
+uniform vec3 u_axis;
+uniform float u_angle, u_scale, u_half;
+out vec3 vN; out vec3 vP;
+${ROT_GLSL}
+void main(){
+  vec3 pos = i_cell + a_pos * u_half;
+  float a = u_angle * i_sel;
+  pos = rotAxis(pos, u_axis, a);
+  vec3 n = rotAxis(a_nrm, u_axis, a);
+  vN = n; vP = pos * u_scale;
+  gl_Position = u_vp * vec4(vP, 1.0);
+}`;
+
+const FS_SHELL = `#version 300 es
+precision highp float;
+in vec3 vN; in vec3 vP;
+uniform vec3 u_eye;
+out vec4 o;
+void main(){
+  vec3 n = normalize(vN);
+  vec3 L = normalize(vec3(0.42, 0.85, 0.55));
+  vec3 V = normalize(u_eye - vP);
+  float dif = max(dot(n, L), 0.0);
+  float fr = pow(1.0 - abs(dot(n, V)), 3.0) * 0.35;
+  o = vec4(vec3(0.043,0.048,0.058)*(0.42 + 0.75*dif) + vec3(0.14,0.15,0.18)*fr, 1.0);
+}`;
+
+const VS_BG = `#version 300 es
+precision highp float;
+layout(location=0) in vec2 a_pos;
+uniform mat4 u_inv; uniform vec3 u_eye;
+out vec3 v_dir;
+void main(){
+  vec4 p = u_inv * vec4(a_pos, 1.0, 1.0); // 反投影到远平面
+  v_dir = p.xyz / p.w - u_eye;
+  gl_Position = vec4(a_pos, 1.0, 1.0);
+}`;
+
+const FS_BG = `#version 300 es
+precision highp float;
+in vec3 v_dir;
+uniform float u_time;
+out vec4 o;
+
+float hash13(vec3 p){
+  p = fract(p * 0.1031);
+  p += dot(p, p.zyx + 31.32);
+  return fract((p.x + p.y) * p.z);
+}
+vec2 hash23(vec3 p){
+  vec3 q = fract(p * vec3(0.1031, 0.1030, 0.0973));
+  q += dot(q, q.yzx + 33.33);
+  return fract((q.xx + q.yz) * q.zy);
+}
+float vnoise(vec3 p){
+  vec3 i = floor(p), f = fract(p);
+  f = f*f*(3.0-2.0*f);
+  float n000=hash13(i),               n100=hash13(i+vec3(1,0,0)),
+        n010=hash13(i+vec3(0,1,0)),   n110=hash13(i+vec3(1,1,0)),
+        n001=hash13(i+vec3(0,0,1)),   n101=hash13(i+vec3(1,0,1)),
+        n011=hash13(i+vec3(0,1,1)),   n111=hash13(i+vec3(1,1,1));
+  return mix(mix(mix(n000,n100,f.x), mix(n010,n110,f.x), f.y),
+             mix(mix(n001,n101,f.x), mix(n011,n111,f.x), f.y), f.z);
+}
+float fbm(vec3 p){
+  float a = 0.5, s = 0.0;
+  for (int i = 0; i < 4; i++){ s += a * vnoise(p); p *= 2.03; a *= 0.5; }
+  return s;
+}
+
+/* 方向 → 立方体六面投影 uv：星点分布均匀、无极点畸变 */
+vec2 cubeUV(vec3 d, out float face){
+  vec3 a = abs(d);
+  if (a.x >= a.y && a.x >= a.z){ face = d.x > 0.0 ? 0.0 : 1.0; return d.yz / a.x; }
+  if (a.y >= a.z){ face = d.y > 0.0 ? 2.0 : 3.0; return d.xz / a.y; }
+  face = d.z > 0.0 ? 4.0 : 5.0; return d.xy / a.z;
+}
+float starLayer(vec3 dir, float scale, float density, float size, float tw, float seed){
+  float face; vec2 uv = cubeUV(dir, face);
+  vec2 g = uv * scale;
+  vec2 cell = floor(g), f = fract(g) - 0.5;
+  float h = hash13(vec3(cell, face + seed));
+  if (h > density) return 0.0;                  // 该格子没有星
+  vec2 rnd = hash23(vec3(cell, face + seed));
+  vec2 sp = (rnd - 0.5) * 0.7;                  // 星在格内的随机偏移
+  float dd = length(f - sp);
+  float s = exp(-dd*dd*size);
+  s *= 0.68 + 0.32 * sin(u_time * tw + rnd.y * 6.2831); // 闪烁
+  return s;
+}
+
+/* ---------- 装饰示意图：银河系 & 太阳系 ---------- */
+// 银河系：中央核球 + 对数螺旋臂；太阳系：太阳 + 8 行星沿轨道公转。
+// 都画在天球上（视线方向函数），随视角旋转保持在天空中固定位置。
+
+void main(){
+  vec3 d = normalize(v_dir);
+
+  // 深空底色（上亮下暗）
+  float up = d.y * 0.5 + 0.5;
+  vec3 col = mix(vec3(0.012,0.016,0.034), vec3(0.028,0.032,0.062), up);
+
+  // 星云：两层噪声调出蓝紫/青色云气
+  float n1 = fbm(d * 2.6);
+  float n2 = fbm(d * 5.2 + 13.7);
+  vec3 neb = mix(vec3(0.09,0.10,0.26), vec3(0.24,0.10,0.30), n1);
+  neb = mix(neb, vec3(0.05,0.17,0.24), smoothstep(0.35, 0.75, n2));
+  col += neb * smoothstep(0.42, 0.85, n1) * smoothstep(0.30, 0.80, n2) * 0.55;
+
+  // 银河带
+  float band = exp(-pow(dot(d, normalize(vec3(0.35, 1.0, 0.2))), 2.0) * 9.0);
+  col += vec3(0.10, 0.11, 0.17) * band * (0.35 + 0.65 * fbm(d * 7.0));
+
+  // 星星：三层（亮星少而大 · 中星 · 暗星多而密）
+  col += vec3(1.00,0.98,0.92) * starLayer(d,  22.0, 0.16, 190.0, 1.8, 7.3) * 0.95;
+  col += vec3(0.78,0.86,1.00) * starLayer(d,  55.0, 0.22, 260.0, 2.6, 3.1) * 0.65;
+  col += vec3(0.92,0.95,1.00) * starLayer(d, 120.0, 0.30, 330.0, 3.4, 9.4) * 0.40;
+
+  /* ---------- 银河系示意图（俯视旋臂 + 中央核球） ---------- */
+  {
+    // 银河盘面法线：让盘面斜挂在画面左上方
+    vec3 gN = normalize(vec3(0.55, 0.78, -0.30));
+    vec3 gC = -gN;                              // 盘心方向（示意图放在天球另一侧）
+    float cd = acos(clamp(dot(d, gC), -1.0, 1.0));   // 距盘心角距离
+    // 核球：亮核 + 微黄光晕
+    col += vec3(0.95, 0.88, 0.70) * exp(-pow(cd / 0.055, 2.0) * 5.0) * 0.9;
+    col += vec3(0.55, 0.50, 0.42) * exp(-cd * 9.0) * 0.22;
+    // 两条对数螺旋臂（θ = ln(r)/k 形式），盘面内画
+    vec3 e = d - gC * dot(d, gC);
+    float er = length(e);
+    if (er > 1e-4 && cd < 1.35) {
+      vec3 eu = e / er;
+      vec3 ref = normalize(cross(gN, vec3(1.0, 0.0, 0.0)));
+      float lon = atan(dot(eu, cross(gN, ref)), dot(eu, ref));
+      float r = er;                             // 近似径向（盘心张角）
+      float arm = sin(lon * 0.5 - log(max(r, 1e-3) * 6.5) * 3.2); // 对数螺线相位
+      float armMask = exp(-abs(arm) * 3.0) * smoothstep(1.30, 0.25, r) * smoothstep(0.02, 0.10, r);
+      col += vec3(0.16, 0.17, 0.24) * armMask * (0.5 + 0.5 * fbm(d * 9.0 + 4.0)) * 0.85;
+    }
+  }
+
+  /* ---------- 太阳系示意图（太阳 + 8 行星轨道，黄道面） ---------- */
+  {
+    vec3 eN = normalize(vec3(0.0, 1.0, 0.0));   // 黄道面法线：水平面
+    vec3 sun = normalize(vec3(0.8, 0.18, -0.55)); // 太阳方向（挂在右前方）
+    // 太阳
+    float sa = acos(clamp(dot(d, sun), -1.0, 1.0));
+    col += vec3(1.00, 0.85, 0.55) * exp(-pow(sa / 0.035, 2.0) * 6.0) * 1.0;
+    col += vec3(0.95, 0.60, 0.25) * exp(-sa * 16.0) * 0.30;
+    // 行星：轨道半径（张角）、颜色、公转角速度（示意）、初相位
+    const int PN = 8;
+    float pr[PN]; vec3 pc[PN]; float pw[PN]; float ph[PN];
+    pr[0]=0.10; pc[0]=vec3(0.62,0.55,0.48); pw[0]=1.60; ph[0]=2.1;  // 水星
+    pr[1]=0.14; pc[1]=vec3(0.90,0.78,0.58); pw[1]=1.17; ph[1]=0.4;  // 金星
+    pr[2]=0.19; pc[2]=vec3(0.36,0.56,0.95); pw[2]=1.00; ph[2]=5.2;  // 地球
+    pr[3]=0.24; pc[3]=vec3(0.85,0.48,0.32); pw[3]=0.80; ph[3]=3.6;  // 火星
+    pr[4]=0.35; pc[4]=vec3(0.90,0.82,0.68); pw[4]=0.45; ph[4]=1.2;  // 木星
+    pr[5]=0.44; pc[5]=vec3(0.88,0.80,0.62); pw[5]=0.33; ph[5]=4.4;  // 土星
+    pr[6]=0.53; pc[6]=vec3(0.60,0.82,0.85); pw[6]=0.23; ph[6]=2.8;  // 天王星
+    pr[7]=0.61; pc[7]=vec3(0.45,0.55,0.90); pw[7]=0.18; ph[7]=0.9;  // 海王星
+    float t = u_time * 0.05;
+    for (int i = 0; i < PN; i++) {
+      // 行星当前位置：轨道平面 = 黄道面，轨道中心方向 = 太阳方向
+      float th = ph[i] + t * pw[i];
+      vec3 ref = normalize(cross(eN, sun));
+      vec3 tang = cross(eN, ref);
+      vec3 p = normalize(sun * cos(pr[i] * 1.0) + (ref * cos(th) + tang * sin(th)) * sin(pr[i]));
+      // 行星本体
+      float a = acos(clamp(dot(d, p), -1.0, 1.0));
+      float r = i == 4 ? 0.006 : (i < 4 ? 0.0035 : 0.0045);
+      col += pc[i] * exp(-pow(a / r, 2.0) * 5.0) * 0.9;
+      col += pc[i] * exp(-a * 40.0) * 0.10;
+      // 轨道线：轨道圆以 sun 为心、位于黄道面内，
+      // 投影到天球上是「到 sun 角距离恒为 pr[i]」的小圆
+      float ca = acos(clamp(dot(d, sun), -1.0, 1.0));
+      float ring = exp(-pow((ca - pr[i]) / 0.004, 2.0));
+      col += pc[i] * ring * 0.10;
+      // 土星环
+      if (i == 5) {
+        float ra = acos(clamp(dot(d, p), -1.0, 1.0));
+        col += vec3(0.85, 0.78, 0.60) * exp(-pow((ra - 0.012) / 0.004, 2.0)) * 0.35;
+      }
+    }
+  }
+
+  o = vec4(col, 1.0);
+}`;
+
+function mkShader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function mkProg(vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, mkShader(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, mkShader(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS))
+    throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+const progStk = mkProg(VS_STK, FS_STK);
+const progShell = mkProg(VS_SHELL, FS_SHELL);
+const progBg = mkProg(VS_BG, FS_BG);
+const U = (p, names) => { const o = {}; names.forEach(n => o[n] = gl.getUniformLocation(p, n)); return o; };
+const uS = U(progStk, ['u_vp','u_axis','u_eye','u_angle','u_scale','u_stk','u_lift']);
+const uH = U(progShell, ['u_vp','u_axis','u_eye','u_angle','u_scale','u_half']);
+const uB = U(progBg, ['u_inv','u_eye','u_time']);
+
+/* ================= 静态几何 ================= */
+const quadV = new Float32Array([-1,-1, 1,-1, 1,1, -1,1]);
+const quadI = new Uint16Array([0,1,2, 0,2,3]);
+const boxData = [], boxI = [];
+[ [[1,0,0],[0,1,0],[0,0,1]], [[-1,0,0],[0,0,1],[0,1,0]],
+  [[0,1,0],[0,0,1],[1,0,0]], [[0,-1,0],[1,0,0],[0,0,1]],
+  [[0,0,1],[1,0,0],[0,1,0]], [[0,0,-1],[0,1,0],[1,0,0]] ].forEach(([n,u,v]) => {
+  const base = boxData.length / 6;
+  [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([a,b]) => {
+    boxData.push(n[0]+u[0]*a+v[0]*b, n[1]+u[1]*a+v[1]*b, n[2]+u[2]*a+v[2]*b, n[0], n[1], n[2]);
+  });
+  boxI.push(base, base+1, base+2, base, base+2, base+3);
+});
+
+/* ================= 状态 ================= */
+const PAL = [ // R L U D F B
+  [0.80,0.13,0.21], [0.95,0.40,0.10], [0.95,0.96,0.97],
+  [0.96,0.77,0.09], [0.04,0.65,0.34], [0.06,0.39,0.85],
+];
+const st = {
+  N: 3, S: 0, Sn: 0,
+  cell: null, nrm: null, col: null, sel: null,
+  shCell: null, shSel: null,
+  history: [], queue: [], cur: null,
+  mode: 'idle', playing: false, runOnce: false, speed: 6,
+  solved: true, batchDone: 0, batchTotal: 0,
+};
+let view, proj, vp, eye = [0,0,7];
+const cam = { yaw: -0.65, pitch: 0.42, dist: 7.2, vyaw: 0, vpitch: 0 };
+const CAM_MIN = 3.2, CAM_MAX = 20, CAM_HOME = { yaw: -0.65, pitch: 0.42, dist: 7.2 };
+const clampDist = d => Math.min(CAM_MAX, Math.max(CAM_MIN, d));
+function resetView() {
+  cam.yaw = CAM_HOME.yaw; cam.pitch = CAM_HOME.pitch; cam.dist = CAM_HOME.dist;
+  cam.vyaw = 0; cam.vpitch = 0; interacted = true;
+}
+let interacted = false;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* GPU 缓冲 */
+const buf = {};
+buf.quadV = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf.quadV);
+gl.bufferData(gl.ARRAY_BUFFER, quadV, gl.STATIC_DRAW);
+buf.quadI = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buf.quadI);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, quadI, gl.STATIC_DRAW);
+buf.box = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf.box);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(boxData), gl.STATIC_DRAW);
+buf.boxI = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buf.boxI);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(boxI), gl.STATIC_DRAW);
+['cell','nrm','col','sel','shCell','shSel'].forEach(k => { buf[k] = gl.createBuffer(); });
+const vaoStk = gl.createVertexArray(), vaoShell = gl.createVertexArray(), vaoBg = gl.createVertexArray();
+const triV = new Float32Array([-1,-1, 3,-1, -1,3]); // 全屏大三角形
+buf.triV = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf.triV);
+gl.bufferData(gl.ARRAY_BUFFER, triV, gl.STATIC_DRAW);
+
+function sub(key, arr) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf[key]);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, arr);
+}
+function uploadSels() { sub('sel', st.sel); sub('shSel', st.shSel); }
+function uploadCells() { sub('cell', st.cell); sub('nrm', st.nrm); sub('shCell', st.shCell); }
+
+function setupVAOs() {
+  gl.bindVertexArray(vaoStk);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf.quadV);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  [[1,'cell',3],[2,'nrm',3],[3,'col',3],[4,'sel',1]].forEach(([loc,key,n]) => {
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf[key]);
+    gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(loc, 1);
+  });
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buf.quadI);
+  gl.bindVertexArray(null);
+
+  gl.bindVertexArray(vaoShell);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf.box);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
+  [[2,'shCell',3],[3,'shSel',1]].forEach(([loc,key,n]) => {
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf[key]);
+    gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(loc, 1);
+  });
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buf.boxI);
+  gl.bindVertexArray(null);
+
+  gl.bindVertexArray(vaoBg);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf.triV);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+}
+setupVAOs();
+
+/* ================= 构建 N 阶 ================= */
+function build(N) {
+  st.N = N;
+  st.history = []; st.queue = []; st.cur = null;
+  st.mode = 'idle'; st.playing = false; st.runOnce = false;
+  st.solved = true; st.batchDone = 0; st.batchTotal = 0;
+
+  const S = 6 * N * N;
+  st.S = S;
+  st.cell = new Float32Array(3 * S);
+  st.nrm  = new Float32Array(3 * S);
+  st.col  = new Float32Array(3 * S);
+  st.sel  = new Float32Array(S);
+
+  // 面表：0:+X 1:-X 2:+Y 3:-Y 4:+Z 5:-Z；cell 取值 = 2*i - N + 1（奇整数）
+  const set = (s, cx, cy, cz, nx, ny, nz, f) => {
+    st.cell[3*s]=cx; st.cell[3*s+1]=cy; st.cell[3*s+2]=cz;
+    st.nrm[3*s]=nx; st.nrm[3*s+1]=ny; st.nrm[3*s+2]=nz;
+    st.col[3*s]=PAL[f][0]; st.col[3*s+1]=PAL[f][1]; st.col[3*s+2]=PAL[f][2];
+  };
+  const C = i => 2*i - N + 1;
+  let s = 0;
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+    set(s++, C(N-1), C(i),   C(j),     1,0,0, 0);            // +X R
+    set(s++, C(0),   C(i),   C(N-1-j), -1,0,0, 1);          // -X L
+    set(s++, C(j),   C(N-1), C(i),     0,1,0, 2);            // +Y U
+    set(s++, C(j),   C(0),   C(N-1-i), 0,-1,0, 3);          // -Y D
+    set(s++, C(i),   C(j),   C(N-1),   0,0,1, 4);            // +Z F
+    set(s++, C(i),   C(N-1-j), C(0),   0,0,-1, 5);          // -Z B
+  }
+
+  // 外壳：所有位于表面的块（去重，角块/棱块只建一个盒体）
+  const cells = [];
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) for (let k = 0; k < N; k++)
+    if (i === 0 || i === N-1 || j === 0 || j === N-1 || k === 0 || k === N-1)
+      cells.push(C(i), C(j), C(k));
+  st.Sn = cells.length / 3;
+  st.shCell = new Float32Array(cells);
+  st.shSel = new Float32Array(st.Sn);
+
+  // 上传全部缓冲
+  [['cell', st.cell, st.cell.length], ['nrm', st.nrm, st.nrm.length],
+   ['col', st.col, st.col.length], ['sel', st.sel, st.sel.length],
+   ['shCell', st.shCell, st.shCell.length], ['shSel', st.shSel, st.shSel.length]]
+  .forEach(([k, arr, len]) => {
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf[k]);
+    gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW);
+  });
+
+  // 高阶时贴纸留边收窄，整体更致密
+  stkParams.stk = N > 30 ? 0.92 : 0.86;
+  orderUI();
+  logUI.reset();
+  updateAll();
+}
+
+/* ================= 转动逻辑 ================= */
+function rotInPlace(arr, i, axis, d) {
+  const x = arr[i], y = arr[i+1], z = arr[i+2];
+  if (axis === 0)      { arr[i+1] = -d*z; arr[i+2] =  d*y; }
+  else if (axis === 1) { arr[i]   =  d*z; arr[i+2] = -d*x; }
+  else                 { arr[i]   = -d*y; arr[i+1] =  d*x; }
+}
+function commitMove(m, upload = true) {
+  const c = 2 * m.layer - st.N + 1;
+  for (let s = 0; s < st.S; s++)
+    if (st.cell[3*s + m.axis] === c) {
+      rotInPlace(st.cell, 3*s, m.axis, m.dir);
+      rotInPlace(st.nrm, 3*s, m.axis, m.dir);
+      st.sel[s] = 0;
+    }
+  for (let s = 0; s < st.Sn; s++)
+    if (st.shCell[3*s + m.axis] === c) {
+      rotInPlace(st.shCell, 3*s, m.axis, m.dir);
+      st.shSel[s] = 0;
+    }
+  if (upload) { uploadCells(); uploadSels(); }
+}
+function setSel(m, v) {
+  const c = 2 * m.layer - st.N + 1;
+  for (let s = 0; s < st.S; s++)
+    if (st.cell[3*s + m.axis] === c) st.sel[s] = v;
+  for (let s = 0; s < st.Sn; s++)
+    if (st.shCell[3*s + m.axis] === c) st.shSel[s] = v;
+  uploadSels();
+}
+function isSolved() {
+  const seen = new Map();
+  for (let s = 0; s < st.S; s++) {
+    const k = st.nrm[3*s] + ',' + st.nrm[3*s+1] + ',' + st.nrm[3*s+2];
+    const v = st.col[3*s] + ',' + st.col[3*s+1] + ',' + st.col[3*s+2];
+    const p = seen.get(k);
+    if (p === undefined) seen.set(k, v);
+    else if (p !== v) return false;
+  }
+  return true;
+}
+
+/* 记号：R L U D F B，内层加数字前缀，如 2R' */
+const FACE_LETTERS = [['R','L'], ['U','D'], ['F','B']];
+function moveLabel(m) {
+  const N = st.N;
+  const dPlus = N - 1 - m.layer, dMinus = m.layer;
+  const plus = dPlus <= dMinus;
+  const sgn = plus ? 1 : -1;
+  const depth = plus ? dPlus : dMinus;
+  const letter = FACE_LETTERS[m.axis][plus ? 0 : 1];
+  const prime = m.dir === -sgn ? '' : "'";
+  return (depth > 0 ? depth + 1 : '') + letter + prime;
+}
+
+/* ================= 队列引擎 ================= */
+function ease(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
+function now() { return performance.now(); }
+const busy = () => st.cur || st.queue.length > 0;
+
+function enqueue(m) { st.queue.push(m); buttonsUI(); }
+
+function startNext() {
+  const m = st.queue.shift();
+  setSel(m, 1);
+  st.cur = { ...m, t0: now() };
+  logUI.setCur(st.batchDone);
+  hudUI(m);
+}
+function endCur() {
+  const m = st.cur;
+  setSel(m, 0);
+  commitMove(m);
+  st.cur = null;
+  afterCommit(m);
+}
+function afterCommit(m) {
+  if (m.pops) st.history.pop();
+  else if (m.record) st.history.push({ axis: m.axis, layer: m.layer, dir: m.dir });
+  st.batchDone++;
+  logUI.setCur(st.batchDone);
+  progressUI();
+  const wasSolved = st.solved;
+  st.solved = isSolved();
+  if (st.solved && st.history.length) st.history.length = 0;
+  if (st.solved && !wasSolved && !busy()) solvedMoment();
+}
+function pump() {
+  if (st.cur) {
+    if (now() - st.cur.t0 >= st.cur.dur) { endCur(); }
+  }
+  if (!st.cur && st.queue.length && (st.playing || st.runOnce)) {
+    st.runOnce = false;
+    startNext();
+  }
+  if (!st.cur && !st.queue.length && st.mode !== 'idle') endBatch();
+}
+function endBatch() {
+  const was = st.mode;
+  st.mode = 'idle'; st.playing = false;
+  logUI.setCur(st.batchTotal);
+  if (was === 'scramble') toast('打乱完成，共 ' + st.batchTotal + ' 步');
+  else if (was === 'pattern') toast('图案绘制完成，在顶面查看「' + $('patInput').value.trim() + '」');
+  updateAll();
+}
+function solvedMoment() {
+  toast('魔方已复原');
+  stage.classList.remove('solvedFlash');
+  void stage.offsetWidth;
+  stage.classList.add('solvedFlash');
+  updateAll();
+}
+
+/* ================= 自动模式 ================= */
+function scramble() {
+  if (busy()) return;
+  const N = st.N, K = Math.min(500, Math.max(1, parseInt($('scramInput').value, 10) || 50)), ms = [];
+  let la = -1, ll = -1, lla = -1;
+  while (ms.length < K) {
+    const axis = (Math.random() * 3) | 0, layer = (Math.random() * N) | 0;
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    if (axis === la && layer === ll) continue;
+    if (axis === la && axis === lla) continue;
+    ms.push({ axis, layer, dir });
+    lla = la; la = axis; ll = layer;
+  }
+  ms.forEach(m => enqueue({ ...m, dur: Math.min(90, 1000 / st.speed), record: true }));
+  st.mode = 'scramble'; st.playing = true;
+  st.batchDone = 0; st.batchTotal = K;
+  logUI.reset(ms.map(moveLabel));
+  progressUI(); updateAll();
+}
+function solve() {
+  if (busy()) return;
+  if (!st.history.length) {
+    if (st.solved) toast('魔方已处于复原状态');
+    else toast('当前状态没有可回溯的步骤，试试重新打乱');
+    return;
+  }
+  for (let i = st.history.length - 1; i >= 0; i--) {
+    const m = st.history[i];
+    enqueue({ axis: m.axis, layer: m.layer, dir: -m.dir,
+              dur: Math.max(90, 1000 / st.speed), pops: true });
+  }
+  st.mode = 'solve'; st.playing = true;
+  st.batchDone = 0; st.batchTotal = st.history.length;
+  logUI.reset(st.queue.map(moveLabel));
+  progressUI(); updateAll();
+}
+/* ================= 图案模式 ================= */
+/* 文字 → N×N 位图（true = 字形像素）。行 → z、列 → x，从正面看是正的 */
+function textBitmap(text, N) {
+  const c = document.createElement('canvas');
+  c.width = N; c.height = N;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.fillStyle = '#fff'; g.fillRect(0, 0, N, N);
+  g.fillStyle = '#000'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  let fs = N * 0.74;
+  g.font = `700 ${fs}px 'Noto Sans SC','Instrument Sans',sans-serif`;
+  const w = g.measureText(text).width;
+  if (w > N * 0.88) {
+    fs *= N * 0.88 / w;
+    g.font = `700 ${fs}px 'Noto Sans SC','Instrument Sans',sans-serif`;
+  }
+  g.fillText(text, N / 2, N / 2 + 0.5);
+  const d = g.getImageData(0, 0, N, N).data;
+  return (x, z) => d[(z * N + x) * 4] < 128;
+}
+/* 每个字形像素用一个 4 步换位子 X(i,+1) Z(k,+1) X(i,-1) Z(k,-1)：
+   只置换 6 张贴纸，效果之一是把 B 面（蓝）贴纸换到顶面 (i,k)，互不干扰 */
+function patternScramble() {
+  if (busy()) return;
+  const text = $('patInput').value.trim();
+  if (!text) { toast('先输入要显示的文字'); return; }
+  const N = st.N;
+  if (N < 12) { toast('图案模式建议 12 阶以上，当前 ' + N + ' 阶'); return; }
+  if (!st.solved) { build(N); toast('已重置为复原状态'); }
+  const isGlyph = textBitmap(text, N);
+  const dur = Math.min(90, 1000 / st.speed);
+  const ms = [];
+  for (let z = 1; z <= N - 2; z++) for (let x = 1; x <= N - 2; x++)
+    if (isGlyph(x, z)) ms.push(
+      { axis: 0, layer: x, dir:  1, dur, record: true },
+      { axis: 2, layer: z, dir:  1, dur, record: true },
+      { axis: 0, layer: x, dir: -1, dur, record: true },
+      { axis: 2, layer: z, dir: -1, dur, record: true },
+    );
+  if (!ms.length) { toast('文字放不下，试试增大阶数或减少字符'); return; }
+  ms.forEach(m => enqueue(m));
+  st.mode = 'pattern'; st.playing = true;
+  st.batchDone = 0; st.batchTotal = ms.length;
+  logUI.reset(ms.map(moveLabel));
+  progressUI(); updateAll();
+  toast('开始绘制「' + text + '」· 共 ' + ms.length + ' 步');
+}
+
+function finishInstant() {
+  if (!busy()) return;
+  if (st.cur) { const m = st.cur; st.cur = null; commitMove(m, false); afterCommit(m); }
+  while (st.queue.length) {
+    const m = st.queue.shift();
+    commitMove(m, false);
+    afterCommit(m);
+  }
+  uploadCells(); uploadSels();
+  logUI.setCur(st.batchTotal);
+  st.playing = false; st.runOnce = false;
+  const was = st.mode;
+  st.mode = 'idle';
+  st.solved = isSolved();
+  if (was === 'scramble') toast('已瞬间打乱');
+  else if (was === 'pattern') toast('图案绘制完成，在顶面查看「' + $('patInput').value.trim() + '」');
+  else if (st.solved) solvedMoment();
+  updateAll();
+}
+
+/* ================= 相机与输入 ================= */
+function updateCamera() {
+  eye = [
+    cam.dist * Math.cos(cam.pitch) * Math.sin(cam.yaw),
+    cam.dist * Math.sin(cam.pitch),
+    cam.dist * Math.cos(cam.pitch) * Math.cos(cam.yaw),
+  ];
+  view = m4look(eye, [0,0,0], [0,1,0]);
+  proj = m4persp(30 * Math.PI / 180, cv.width / Math.max(1, cv.height), 0.5, 60);
+  vp = m4mul(proj, view);
+}
+function pick(x, y) {
+  const r = cv.getBoundingClientRect();
+  const nx = ((x - r.left) / r.width) * 2 - 1;
+  const ny = 1 - ((y - r.top) / r.height) * 2;
+  const inv = m4inv(vp);
+  const p0 = m4v(inv, [nx, ny, -1, 1]);
+  const p1 = m4v(inv, [nx, ny, 1, 1]);
+  // 先各自做透视除法（除以 w）再相减：齐次坐标直接相减与屏幕位置无关，会导致所有射线同向
+  const o = [p0[0]/p0[3], p0[1]/p0[3], p0[2]/p0[3]];
+  const f = [p1[0]/p1[3], p1[1]/p1[3], p1[2]/p1[3]];
+  const d = [f[0]-o[0], f[1]-o[1], f[2]-o[2]];
+  const l = Math.hypot(...d);
+  return { o, d: [d[0]/l, d[1]/l, d[2]/l] };
+}
+function boxHit(o, d, h) {
+  let t0 = -Infinity, t1 = Infinity;
+  for (let a = 0; a < 3; a++) {
+    if (Math.abs(d[a]) < 1e-9) { if (Math.abs(o[a]) > h) return null; continue; }
+    let ta = (-h - o[a]) / d[a], tb = (h - o[a]) / d[a];
+    if (ta > tb) [ta, tb] = [tb, ta];
+    t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+    if (t0 > t1) return null;
+  }
+  return t1 > 0 ? Math.max(t0, 0) : null;
+}
+/* 在魔方上拖拽 → 判断要拧哪一层 */
+function twistFromDrag(x0, y0, dx, dy) {
+  const ray = pick(x0, y0);
+  const h = st.N * scaleUnit() + 0.02;
+  const t = boxHit(ray.o, ray.d, h);
+  if (t === null) return null;
+  const p = [ray.o[0] + ray.d[0]*t, ray.o[1] + ray.d[1]*t, ray.o[2] + ray.d[2]*t];
+  const scale = scaleUnit();
+  // 命中面
+  let fa = 0;
+  for (let a = 1; a < 3; a++) if (Math.abs(p[a]) > Math.abs(p[fa])) fa = a;
+  const idx = [0,0,0];
+  for (let a = 0; a < 3; a++) {
+    const q = p[a] / scale + st.N;
+    idx[a] = Math.min(st.N - 1, Math.max(0, Math.floor(q / 2)));
+  }
+  idx[fa] = p[fa] > 0 ? st.N - 1 : 0;
+  // 两个候选转动轴，取屏幕投影与拖拽方向一致者
+  let best = null;
+  for (let b = 0; b < 3; b++) {
+    if (b === fa) continue;
+    const e = [0,0,0]; e[b] = 1;
+    const v = [
+      e[1]*p[2] - e[2]*p[1],
+      e[2]*p[0] - e[0]*p[2],
+      e[0]*p[1] - e[1]*p[0],
+    ];
+    const vx = view[0]*v[0] + view[4]*v[1] + view[8]*v[2];
+    const vy = view[1]*v[0] + view[5]*v[1] + view[9]*v[2];
+    const l = Math.hypot(vx, vy);
+    if (l < 1e-6) continue;
+    const dot = (dx * vx - dy * vy) / l;
+    if (!best || Math.abs(dot) > Math.abs(best.dot)) best = { axis: b, dot };
+  }
+  if (!best) return null;
+  return { axis: best.axis, layer: idx[best.axis], dir: best.dot > 0 ? 1 : -1 };
+}
+
+const pointers = new Map();
+let gesture = null; // {x,y,mode,done}
+let dragMode = 'twist'; // 'twist' | 'view'
+let manualLabels = [];  // 当前手动拧动批次的记号
+/* 拖拽起点是否落在魔方上 */
+function onCubeHit(x, y) {
+  const ray = pick(x, y);
+  return boxHit(ray.o, ray.d, st.N * scaleUnit() + 0.02) !== null;
+}
+cv.addEventListener('pointerdown', e => {
+  interacted = true;
+  cv.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) {
+    // 拧动仅在「拧动模式」下、左键、非 Shift、且起点在魔方上时生效；
+    // 手动拧动进行中可以继续拧其他层（排队依次执行）；
+    // 打乱/还原/图案播放中则锁定，其余情况一律旋转视角
+    const canTwist = dragMode === 'twist' && e.button === 0 && !e.shiftKey
+      && onCubeHit(e.clientX, e.clientY)
+      && (!busy() || st.mode === 'manual');
+    gesture = { x: e.clientX, y: e.clientY, mode: canTwist ? 'twist' : 'orbit', done: false, pinch: 0 };
+    cam.vyaw = 0; cam.vpitch = 0;
+    cv.classList.add('grabbing');
+  }
+});
+cv.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (pointers.size >= 2) { // 双指缩放
+    const pts = [...pointers.values()];
+    const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    if (gesture && gesture.pinch) {
+      cam.dist = clampDist(cam.dist * gesture.pinch / Math.max(1, d));
+    }
+    if (gesture) gesture.pinch = d;
+    return;
+  }
+  if (!gesture) return;
+  if (gesture.mode === 'twist') {
+    // 拧动层：识别一次后锁定本次拖拽，拧动前后都不动相机，避免视角跟着乱转
+    if (!gesture.done && Math.hypot(e.clientX - gesture.x, e.clientY - gesture.y) > 10) {
+      const m = twistFromDrag(gesture.x, gesture.y, e.clientX - gesture.x, e.clientY - gesture.y);
+      gesture.done = true;
+      if (m) {
+        enqueue({ ...m, dur: 240, record: true });
+        if (st.mode === 'manual') {
+          manualLabels.push(moveLabel(m)); // 连续拧动：累加到当前批次
+        } else {
+          manualLabels = [moveLabel(m)];
+          st.mode = 'manual'; st.batchDone = 0;
+        }
+        st.playing = true;
+        st.batchTotal = manualLabels.length;
+        logUI.reset(manualLabels);
+        logUI.setCur(st.batchDone);
+        progressUI(); updateAll();
+      } else {
+        gesture.mode = 'orbit'; // 没识别出拧动 → 降级为旋转视角
+      }
+    }
+    return;
+  }
+  // 轨道旋转
+  cam.yaw += dx * 0.0055;
+  cam.pitch = Math.min(1.45, Math.max(-1.45, cam.pitch + dy * 0.0055));
+  cam.vyaw = dx * 0.0055; cam.vpitch = dy * 0.0055;
+});
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size === 0) { gesture = null; cv.classList.remove('grabbing'); }
+}
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  interacted = true;
+  cam.dist = clampDist(cam.dist * Math.exp(e.deltaY * 0.0012));
+}, { passive: false });
+cv.addEventListener('dblclick', e => { e.preventDefault(); resetView(); });
+const zoomBy = f => { interacted = true; cam.dist = clampDist(cam.dist * f); };
+$('zoomIn').onclick = () => zoomBy(1 / 1.25);
+$('zoomOut').onclick = () => zoomBy(1.25);
+$('zoomFit').onclick = resetView;
+
+function scaleUnit() { return 1.75 / st.N; }
+const stkParams = { stk: 0.86 };
+
+/* ================= 渲染 ================= */
+gl.enable(gl.DEPTH_TEST);
+gl.enable(gl.CULL_FACE);
+function resize() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const r = cv.getBoundingClientRect();
+  const w = Math.max(1, Math.round(r.width * dpr));
+  const h = Math.max(1, Math.round(r.height * dpr));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+}
+new ResizeObserver(resize).observe(stage);
+
+function draw() {
+  resize();
+  updateCamera();
+  pump();
+  // 相机惯性 / 待机慢转
+  if (!gesture && (Math.abs(cam.vyaw) > 1e-4 || Math.abs(cam.vpitch) > 1e-4)) {
+    cam.yaw += cam.vyaw; cam.pitch = Math.min(1.45, Math.max(-1.45, cam.pitch + cam.vpitch));
+    cam.vyaw *= 0.90; cam.vpitch *= 0.90;
+  }
+  if (!interacted && !reduceMotion) cam.yaw += 0.0016;
+
+  let axis = [1,0,0], angle = 0;
+  if (st.cur) {
+    axis = [0,0,0]; axis[st.cur.axis] = 1;
+    angle = st.cur.dir * (Math.PI / 2) * ease(Math.min(1, (now() - st.cur.t0) / st.cur.dur));
+    hudUI(st.cur);
+  }
+
+  gl.viewport(0, 0, cv.width, cv.height);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  // 星空背景：先画，不写深度
+  gl.disable(gl.DEPTH_TEST);
+  gl.depthMask(false);
+  gl.useProgram(progBg);
+  gl.uniformMatrix4fv(uB.u_inv, false, m4inv(vp));
+  gl.uniform3fv(uB.u_eye, eye);
+  gl.uniform1f(uB.u_time, reduceMotion ? 12.0 : now() / 1000);
+  gl.bindVertexArray(vaoBg);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.depthMask(true);
+  gl.enable(gl.DEPTH_TEST);
+
+  const sc = scaleUnit();
+  gl.useProgram(progShell);
+  gl.uniformMatrix4fv(uH.u_vp, false, vp);
+  gl.uniform3fv(uH.u_axis, axis);
+  gl.uniform3fv(uH.u_eye, eye);
+  gl.uniform1f(uH.u_angle, angle);
+  gl.uniform1f(uH.u_scale, sc);
+  gl.uniform1f(uH.u_half, 0.997);
+  gl.bindVertexArray(vaoShell);
+  gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, st.Sn);
+
+  gl.useProgram(progStk);
+  gl.uniformMatrix4fv(uS.u_vp, false, vp);
+  gl.uniform3fv(uS.u_axis, axis);
+  gl.uniform3fv(uS.u_eye, eye);
+  gl.uniform1f(uS.u_angle, angle);
+  gl.uniform1f(uS.u_scale, sc);
+  gl.uniform1f(uS.u_stk, stkParams.stk);
+  gl.uniform1f(uS.u_lift, 0.06);
+  gl.bindVertexArray(vaoStk);
+  gl.drawElementsInstanced(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0, st.S);
+}
+(function loop() { draw(); requestAnimationFrame(loop); })();
+
+/* ================= UI ================= */
+const statusEl = $('status'), statusTxt = statusEl.querySelector('span');
+const moveBig = $('moveBig'), moveSub = $('moveSub');
+const moveList = $('moveList'), progressBar = $('progressBar'), progressText = $('progressText');
+const toastEl = $('toast');
+let toastTimer = null, logChips = [];
+
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
+}
+function hudUI(m) {
+  moveBig.textContent = moveLabel(m);
+  moveSub.textContent =
+    (st.mode === 'scramble' ? '打乱' : st.mode === 'solve' ? '还原' : st.mode === 'pattern' ? '绘制' : '拧动') +
+    ' · 第 ' + Math.min(st.batchDone + 1, st.batchTotal) + ' / ' + st.batchTotal + ' 步';
+}
+function statusUI() {
+  if (st.mode === 'pattern') { statusEl.className = 'busy'; statusTxt.textContent = '绘制中 · ' + st.batchDone + ' / ' + st.batchTotal; }
+  else if (st.mode === 'scramble') { statusEl.className = 'busy'; statusTxt.textContent = '打乱中 · ' + st.batchDone + ' / ' + st.batchTotal; }
+  else if (st.mode === 'solve') { statusEl.className = 'busy'; statusTxt.textContent = '还原中 · ' + st.batchDone + ' / ' + st.batchTotal; }
+  else if (st.mode === 'manual') { statusEl.className = 'busy'; statusTxt.textContent = '拧动中'; }
+  else if (st.solved) { statusEl.className = ''; statusTxt.textContent = '已复原'; }
+  else { statusEl.className = 'free'; statusTxt.textContent = '自由状态 · 记录 ' + st.history.length + ' 步'; }
+}
+function progressUI() {
+  const pct = st.batchTotal ? (st.batchDone / st.batchTotal) * 100 : 0;
+  progressBar.style.width = pct + '%';
+  progressText.textContent = st.batchTotal
+    ? st.batchDone + ' / ' + st.batchTotal + ' 步' + (st.mode === 'solve' ? ' · 剩余记录 ' + st.history.length + ' 步' : '')
+    : '等待打乱';
+}
+const logUI = {
+  reset(labels = []) {
+    moveList.innerHTML = '';
+    logChips = labels.map(lb => {
+      const d = document.createElement('span');
+      d.className = 'mv';
+      d.textContent = lb;
+      moveList.appendChild(d);
+      return d;
+    });
+    this.setCur(0);
+  },
+  setCur(i) {
+    logChips.forEach((c, k) => {
+      c.className = 'mv ' + (k < i ? 'past' : k === i ? 'cur' : '');
+    });
+    const c = logChips[Math.min(i, logChips.length - 1)];
+    if (c) c.scrollIntoView({ block: 'nearest' });
+  },
+};
+function buttonsUI() {
+  const b = busy();
+  $('btnScramble').disabled = b;
+  $('btnSolve').disabled = b;
+  $('btnFinish').disabled = !b;
+  $('btnPlay').disabled = st.queue.length === 0 && !st.cur;
+  $('btnPlay').textContent = st.playing ? '暂停' : '播放';
+}
+function updateAll() { statusUI(); buttonsUI(); progressUI(); }
+
+function orderUI() {
+  const n = st.N;
+  $('ordInput').value = n;
+  document.querySelectorAll('.chip').forEach(c =>
+    c.classList.toggle('on', +c.dataset.n === n));
+  $('orderMeta').textContent =
+    n + ' 阶 · ' + (6 * n * n).toLocaleString() + ' 张贴纸 · ' + st.Sn.toLocaleString() + ' 个小块';
+}
+
+/* 事件绑定 */
+function setDragMode(m) {
+  dragMode = m;
+  $('dmTwist').classList.toggle('on', m === 'twist');
+  $('dmView').classList.toggle('on', m === 'view');
+}
+$('dmTwist').onclick = () => setDragMode('twist');
+$('dmView').onclick = () => setDragMode('view');
+const PRESETS = [2, 3, 4, 5, 7, 10, 20, 50, 100, 200, 500];
+PRESETS.forEach(n => {
+  const b = document.createElement('button');
+  b.className = 'chip'; b.dataset.n = n; b.textContent = n;
+  b.onclick = () => build(n);
+  $('presets').appendChild(b);
+});
+function changeOrder(d) {
+  const cur = parseInt($('ordInput').value, 10) || st.N;
+  build(Math.min(500, Math.max(1, cur + d)));
+}
+$('ordMinus').onclick = () => changeOrder(-1);
+$('ordPlus').onclick = () => changeOrder(1);
+$('ordInput').addEventListener('change', e => {
+  const v = parseInt(e.target.value, 10);
+  build(Math.min(500, Math.max(1, isNaN(v) ? 3 : v)));
+});
+$('scramInput').addEventListener('change', e => {
+  const v = parseInt(e.target.value, 10);
+  e.target.value = Math.min(500, Math.max(1, isNaN(v) ? 50 : v));
+});
+$('btnPattern').onclick = patternScramble;
+$('btnScramble').onclick = scramble;
+$('btnSolve').onclick = solve;
+$('btnFinish').onclick = finishInstant;
+$('btnReset').onclick = () => { build(st.N); toast('已重置为复原状态'); };
+$('btnPlay').onclick = () => {
+  if (!busy()) { toast('没有待播放的步骤，先打乱一下吧'); return; }
+  st.playing = !st.playing;
+  updateAll();
+};
+$('btnStep').onclick = () => {
+  if (!st.queue.length && !st.cur) { toast('没有待播放的步骤'); return; }
+  st.playing = false; st.runOnce = true;
+  updateAll();
+};
+$('speed').addEventListener('input', e => {
+  st.speed = +e.target.value;
+  $('speedVal').textContent = st.speed + ' 步/秒';
+});
+document.addEventListener('keydown', e => {
+  if (/INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.code === 'Space') { e.preventDefault(); $('btnPlay').click(); }
+  else if (e.key === 's' || e.key === 'S') scramble();
+  else if (e.key === 'r' || e.key === 'R') solve();
+  else if (e.key === 'v' || e.key === 'V') setDragMode(dragMode === 'twist' ? 'view' : 'twist');
+});
+
+build(3);
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>

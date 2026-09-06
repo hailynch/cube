@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 奥熙的魔方 · 应用图标：星空上的魔方 -->
+  <defs>
+    <radialGradient id="bg" cx="0.62" cy="0.38" r="0.9">
+      <stop offset="0" stop-color="#141a2e"/>
+      <stop offset="1" stop-color="#04060a"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#e3b264" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#e3b264" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sticker" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.10"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- 星星 -->
+  <g fill="#dfe6f2">
+    <circle cx="60" cy="72" r="3"/>
+    <circle cx="140" cy="40" r="2"/>
+    <circle cx="236" cy="66" r="2.5"/>
+    <circle cx="330" cy="36" r="2"/>
+    <circle cx="430" cy="88" r="3"/>
+    <circle cx="476" cy="150" r="2"/>
+    <circle cx="38" cy="200" r="2"/>
+    <circle cx="470" cy="260" r="2.5"/>
+    <circle cx="80" cy="440" r="2.5"/>
+    <circle cx="452" cy="430" r="2"/>
+    <circle cx="200" cy="470" r="2"/>
+    <circle cx="352" cy="478" r="2.5"/>
+    <circle cx="30" cy="330" r="2"/>
+  </g>
+
+  <!-- 魔方（等轴测三面） -->
+  <g transform="translate(256,268) scale(1)">
+    <!-- 顶面（白） -->
+    <g>
+      <path d="M0,-150 L120,-88 L0,-26 L-120,-88 Z" fill="#22262f"/>
+      <!-- 2x2 贴纸 -->
+      <path d="M-60,-119 L0,-88 L-60,-57 L-120,-88 Z" fill="#eef0f3"/>
+      <path d="M60,-119 L120,-88 L60,-57 L0,-88 Z" fill="#eef0f3"/>
+      <path d="M0,-88 L60,-57 L0,-26 L-60,-57 Z" fill="#eef0f3"/>
+      <path d="M-60,-150 L0,-119 L-60,-88 L-120,-119 Z" fill="#eef0f3" opacity="0"/>
+      <!-- 中缝线（蓝色 L 字装饰，呼应图案模式） -->
+      <path d="M0,-150 L0,-26 M-120,-88 L120,-88 M-60,-119 L60,-57 M60,-119 L-60,-57" stroke="#15181e" stroke-width="7"/>
+    </g>
+    <!-- 左面（红） -->
+    <g>
+      <path d="M-120,-88 L0,-26 L0,120 L-120,58 Z" fill="#22262f"/>
+      <path d="M-120,-88 L0,-26 L0,47 L-120,15 Z" fill="#cf2438"/>
+      <path d="M-120,15 L0,47 L0,120 L-120,88 Z" fill="#cf2438"/>
+      <path d="M-60,-57 L0,-26 L0,47 L-60,16 Z" fill="#cf2438"/>
+      <path d="M-60,16 L0,47 L0,120 L-60,89 Z" fill="#cf2438"/>
+      <path d="M0,-26 L0,120 M-120,-88 L-120,88 M-60,-57 L-60,89" stroke="#15181e" stroke-width="7"/>
+    </g>
+    <!-- 右面（蓝） -->
+    <g>
+      <path d="M120,-88 L0,-26 L0,120 L120,58 Z" fill="#22262f"/>
+      <path d="M120,-88 L0,-26 L0,47 L120,15 Z" fill="#0f64d9"/>
+      <path d="M120,15 L0,47 L0,120 L120,88 Z" fill="#0f64d9"/>
+      <path d="M60,-57 L0,-26 L0,47 L60,16 Z" fill="#0f64d9"/>
+      <path d="M60,16 L0,47 L0,120 L60,89 Z" fill="#0f64d9"/>
+      <path d="M0,-26 L0,120 M120,-88 L120,88 M60,-57 L60,89" stroke="#15181e" stroke-width="7"/>
+    </g>
+  </g>
+
+  <!-- 光晕 -->
+  <rect width="512" height="512" rx="112" fill="url(#glow)"/>
+</svg>

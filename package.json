@@ -1,0 +1,40 @@
+{
+  "name": "aoxi-cube",
+  "productName": "奥熙的魔方",
+  "version": "1.0.0",
+  "description": "星空背景下的 N 阶魔方模拟器：打乱、求解、图案模式与自动演示。",
+  "main": "main.js",
+  "author": "whg",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.whg.aoxicube",
+    "productName": "奥熙的魔方",
+    "files": [
+      "index.html",
+      "manifest.webmanifest",
+      "sw.js",
+      "icons/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ],
+      "category": "Game",
+      "icon": "icons/icon-512.png"
+    }
+  }
+}
