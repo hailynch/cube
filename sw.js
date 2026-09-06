@@ -1,7 +1,7 @@
 /* 奥熙的魔方 · Service Worker
    缓存策略：应用外壳（index.html / manifest / 图标）预缓存；
    Google Fonts 走 stale-while-revalidate，离线时回退缓存副本。 */
-const VERSION = 'aoxi-cube-v7';
+const VERSION = 'aoxi-cube-v11';
 const CORE = [
   './',
   './index.html',
