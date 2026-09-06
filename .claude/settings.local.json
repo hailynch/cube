@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(command -v node chromium chromium-browser google-chrome google-chrome-stable)"
+      "Bash(command -v node chromium chromium-browser google-chrome google-chrome-stable)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(ssh-keyscan -t ed25519,rsa github.com)",
+      "Bash(git push *)",
+      "Bash(grep -oE '\\(LEO|奥熙|文字|输入\\)[^<>]{0,40}' /home/whg/Work/cube/index.html)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }

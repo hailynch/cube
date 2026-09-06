@@ -307,7 +307,7 @@
         <input id="patInput" type="text" value="LEO" maxlength="12" placeholder="要显示的文字">
         <button id="btnPattern" class="btn gold">图案打乱</button>
       </div>
-      <p class="meta">在顶面用蓝色贴纸拼出文字（白底），适合 12 阶以上，阶数越高越清晰。</p>
+      <p class="meta">在顶面用蓝色贴纸拼出文字（白底），适合 12 阶以上，阶数越高越清晰。步骤按列合并优化，超过 500 步自动瞬时完成。</p>
     </section>
 
     <section>
@@ -708,6 +708,7 @@ const st = {
   N: 3, S: 0, Sn: 0,
   cell: null, nrm: null, col: null, sel: null,
   shCell: null, shSel: null,
+  bkt: null, shBkt: null, bpos: null, shPos: null,
   history: [], queue: [], cur: null,
   mode: 'idle', playing: false, runOnce: false, speed: 6,
   solved: true, batchDone: 0, batchTotal: 0,
@@ -819,6 +820,7 @@ function build(N) {
   st.Sn = cells.length / 3;
   st.shCell = new Float32Array(cells);
   st.shSel = new Float32Array(st.Sn);
+  buildIndex();
 
   // 上传全部缓冲
   [['cell', st.cell, st.cell.length], ['nrm', st.nrm, st.nrm.length],
@@ -843,27 +845,74 @@ function rotInPlace(arr, i, axis, d) {
   else if (axis === 1) { arr[i]   =  d*z; arr[i+2] = -d*x; }
   else                 { arr[i]   = -d*y; arr[i+1] =  d*x; }
 }
+/* 桶索引：每个轴的每一层记录当前处于该层的贴纸/外壳块下标。
+   转动时只处理受影响的约 S/N 个块，避免高阶下每步 O(S) 全表扫描 */
+function buildIndex() {
+  const N = st.N;
+  const mkBkt = () => [0, 1, 2].map(() => Array.from({ length: N }, () => []));
+  st.bkt = mkBkt(); st.shBkt = mkBkt();
+  st.bpos = [0, 1, 2].map(() => new Int32Array(st.S));
+  st.shPos = [0, 1, 2].map(() => new Int32Array(st.Sn));
+  for (let s = 0; s < st.S; s++) for (let a = 0; a < 3; a++) {
+    const L = (st.cell[3*s + a] + N - 1) >> 1;
+    st.bpos[a][s] = st.bkt[a][L].length; st.bkt[a][L].push(s);
+  }
+  for (let s = 0; s < st.Sn; s++) for (let a = 0; a < 3; a++) {
+    const L = (st.shCell[3*s + a] + N - 1) >> 1;
+    st.shPos[a][s] = st.shBkt[a][L].length; st.shBkt[a][L].push(s);
+  }
+}
+/* 块 s 沿 b 轴从 from 层桶迁到 to 层桶（swap-remove，均摊 O(1)） */
+function bktMove(bkt, pos, b, s, fromL, toL) {
+  const from = bkt[b][fromL];
+  const p = pos[b][s], last = from.pop();
+  if (p < from.length) { from[p] = last; pos[b][last] = p; }
+  const to = bkt[b][toL];
+  pos[b][s] = to.length; to.push(s);
+}
 function commitMove(m, upload = true) {
-  const c = 2 * m.layer - st.N + 1;
-  for (let s = 0; s < st.S; s++)
-    if (st.cell[3*s + m.axis] === c) {
-      rotInPlace(st.cell, 3*s, m.axis, m.dir);
-      rotInPlace(st.nrm, 3*s, m.axis, m.dir);
-      st.sel[s] = 0;
+  const N = st.N, a = m.axis, d = m.dir;
+  const list = st.bkt[a][m.layer];
+  for (let i = 0; i < list.length; i++) {
+    const s = list[i], j = 3*s;
+    const x = st.cell[j], y = st.cell[j+1], z = st.cell[j+2];
+    let nx = x, ny = y, nz = z;
+    if (a === 0)      { ny = -d*z; nz =  d*y; }
+    else if (a === 1) { nx =  d*z; nz = -d*x; }
+    else              { nx = -d*y; ny =  d*x; }
+    // 旋转轴上的坐标不变，其余两轴的桶成员随之迁移
+    for (let b = 0; b < 3; b++) {
+      if (b === a) continue;
+      const oc = b === 0 ? x : b === 1 ? y : z, nc = b === 0 ? nx : b === 1 ? ny : nz;
+      bktMove(st.bkt, st.bpos, b, s, (oc + N - 1) >> 1, (nc + N - 1) >> 1);
     }
-  for (let s = 0; s < st.Sn; s++)
-    if (st.shCell[3*s + m.axis] === c) {
-      rotInPlace(st.shCell, 3*s, m.axis, m.dir);
-      st.shSel[s] = 0;
+    st.cell[j] = nx; st.cell[j+1] = ny; st.cell[j+2] = nz;
+    rotInPlace(st.nrm, j, a, d);
+    st.sel[s] = 0;
+  }
+  const shl = st.shBkt[a][m.layer];
+  for (let i = 0; i < shl.length; i++) {
+    const s = shl[i], j = 3*s;
+    const x = st.shCell[j], y = st.shCell[j+1], z = st.shCell[j+2];
+    let nx = x, ny = y, nz = z;
+    if (a === 0)      { ny = -d*z; nz =  d*y; }
+    else if (a === 1) { nx =  d*z; nz = -d*x; }
+    else              { nx = -d*y; ny =  d*x; }
+    for (let b = 0; b < 3; b++) {
+      if (b === a) continue;
+      const oc = b === 0 ? x : b === 1 ? y : z, nc = b === 0 ? nx : b === 1 ? ny : nz;
+      bktMove(st.shBkt, st.shPos, b, s, (oc + N - 1) >> 1, (nc + N - 1) >> 1);
     }
+    st.shCell[j] = nx; st.shCell[j+1] = ny; st.shCell[j+2] = nz;
+    st.shSel[s] = 0;
+  }
   if (upload) { uploadCells(); uploadSels(); }
 }
 function setSel(m, v) {
-  const c = 2 * m.layer - st.N + 1;
-  for (let s = 0; s < st.S; s++)
-    if (st.cell[3*s + m.axis] === c) st.sel[s] = v;
-  for (let s = 0; s < st.Sn; s++)
-    if (st.shCell[3*s + m.axis] === c) st.shSel[s] = v;
+  const list = st.bkt[m.axis][m.layer];
+  for (let i = 0; i < list.length; i++) st.sel[list[i]] = v;
+  const shl = st.shBkt[m.axis][m.layer];
+  for (let i = 0; i < shl.length; i++) st.shSel[shl[i]] = v;
   uploadSels();
 }
 function isSolved() {
@@ -1008,8 +1057,94 @@ function textBitmap(text, N) {
   const d = g.getImageData(0, 0, N, N).data;
   return (x, z) => d[(z * N + x) * 4] < 128;
 }
-/* 每个字形像素用一个 4 步换位子 X(i,+1) Z(k,+1) X(i,-1) Z(k,-1)：
-   只置换 6 张贴纸，效果之一是把 B 面（蓝）贴纸换到顶面 (i,k)，互不干扰 */
+/* 生成图案步骤（原方案每个像素 4 步，此处按结构合并，文字类图案可降到 1/3 ~ 1/50）。
+   两种等价结构都只置换本列顶面贴纸，互不干扰，各生成一套取更短者：
+   A. 行集合分组 —— 图案行完全相同的列共用一个换位子（文字/规则图案极省，
+      且步数不随字号放大而增长）；
+   B. 包围盒基座 —— 稠密列并入一个大基座换位子整体上蓝，再按列把空隙
+      换回白色，稀疏列直画（随机噪点类图案更省）。
+   最后消去相邻互逆步。 */
+function patternMoves(N, isGlyph) {
+  const cols = []; // 有图案像素的列：{ x, G: [z...] }
+  for (let x = 1; x <= N - 2; x++) {
+    const G = [];
+    for (let z = 1; z <= N - 2; z++) if (isGlyph(x, z)) G.push(z);
+    if (G.length) cols.push({ x, G });
+  }
+  if (!cols.length) return [];
+  const gen = () => {
+    const ms = [];
+    const X = (x, d) => ms.push({ axis: 0, layer: x, dir: d });
+    const Z = (z, d) => ms.push({ axis: 2, layer: z, dir: d });
+    return { ms, X, Z };
+  };
+  // 方案 A
+  const a = gen();
+  {
+    const groups = new Map(); // 行集合 → 该集合的列
+    for (const c of cols) {
+      const key = c.G.join(',');
+      if (!groups.has(key)) groups.set(key, { cs: [], rs: c.G });
+      groups.get(key).cs.push(c.x);
+    }
+    for (const g of [...groups.values()].sort((p, q) => p.cs[0] - q.cs[0])) {
+      g.cs.forEach(x => a.X(x, 1));
+      g.rs.forEach(z => a.Z(z, 1));
+      g.cs.forEach(x => a.X(x, -1));
+      g.rs.forEach(z => a.Z(z, -1));
+    }
+  }
+  // 方案 B
+  const b = gen();
+  {
+    // 迭代选基座列：列像素数超过基座行数一半时，走基座+修补更省
+    let base = cols.map(c => c.x);
+    for (let it = 0; it < 4; it++) {
+      if (!base.length) break;
+      const rows = new Set();
+      for (const c of cols) if (base.includes(c.x)) c.G.forEach(z => rows.add(z));
+      const nb = cols.filter(c => 2 * c.G.length > rows.size).map(c => c.x);
+      if (nb.length === base.length && nb.every((v, i) => v === base[i])) break;
+      base = nb;
+    }
+    const baseRows = new Set();
+    for (const c of cols) if (base.includes(c.x)) c.G.forEach(z => baseRows.add(z));
+    if (base.length) {
+      base.forEach(x => b.X(x, 1));
+      baseRows.forEach(z => b.Z(z, 1));
+      base.forEach(x => b.X(x, -1));
+      baseRows.forEach(z => b.Z(z, -1));
+      for (const x of base) {
+        const c = cols.find(q => q.x === x);
+        const gaps = [...baseRows].filter(z => !c.G.includes(z));
+        if (!gaps.length) continue;
+        gaps.forEach(z => b.Z(z, 1));
+        b.X(x, 1);
+        gaps.forEach(z => b.Z(z, -1));
+        b.X(x, -1);
+      }
+    }
+    for (const c of cols) {
+      if (base.includes(c.x)) continue;
+      b.X(c.x, 1);
+      c.G.forEach(z => b.Z(z, 1));
+      b.X(c.x, -1);
+      c.G.forEach(z => b.Z(z, -1));
+    }
+  }
+  const ms = a.ms.length <= b.ms.length ? a.ms : b.ms;
+  const out = [];
+  for (const m of ms) {
+    const p = out[out.length - 1];
+    if (p && p.axis === m.axis && p.layer === m.layer && p.dir === -m.dir) out.pop();
+    else out.push(m);
+  }
+  return out;
+}
+
+/* 超过此步数直接瞬时绘制——数千步动画既卡顿又无观赏价值 */
+const PAT_INSTANT_MAX = 500;
+
 function patternScramble() {
   if (busy()) return;
   const text = $('patInput').value.trim();
@@ -1017,18 +1152,15 @@ function patternScramble() {
   const N = st.N;
   if (N < 12) { toast('图案模式建议 12 阶以上，当前 ' + N + ' 阶'); return; }
   if (!st.solved) { build(N); toast('已重置为复原状态'); }
-  const isGlyph = textBitmap(text, N);
-  const dur = Math.min(90, 1000 / st.speed);
-  const ms = [];
-  for (let z = 1; z <= N - 2; z++) for (let x = 1; x <= N - 2; x++)
-    if (isGlyph(x, z)) ms.push(
-      { axis: 0, layer: x, dir:  1, dur, record: true },
-      { axis: 2, layer: z, dir:  1, dur, record: true },
-      { axis: 0, layer: x, dir: -1, dur, record: true },
-      { axis: 2, layer: z, dir: -1, dur, record: true },
-    );
+  const ms = patternMoves(N, textBitmap(text, N));
   if (!ms.length) { toast('文字放不下，试试增大阶数或减少字符'); return; }
-  ms.forEach(m => enqueue(m));
+  if (ms.length > PAT_INSTANT_MAX) {
+    applyInstant(ms.map(m => ({ ...m, record: true })));
+    toast('图案已瞬时绘制「' + text + '」· 共 ' + ms.length + ' 步');
+    return;
+  }
+  const dur = Math.min(90, 1000 / st.speed);
+  ms.forEach(m => enqueue({ ...m, dur, record: true }));
   st.mode = 'pattern'; st.playing = true;
   st.batchDone = 0; st.batchTotal = ms.length;
   logUI.reset(ms.map(moveLabel));
@@ -1036,24 +1168,33 @@ function patternScramble() {
   toast('开始绘制「' + text + '」· 共 ' + ms.length + ' 步');
 }
 
+/* 瞬时应用一批步骤：只做坐标与桶迁移，跳过逐步的复原检测与 DOM 刷新，最后统一上传 */
+function applyInstant(ms) {
+  for (const m of ms) {
+    commitMove(m, false);
+    if (m.pops) st.history.pop();
+    else if (m.record) st.history.push({ axis: m.axis, layer: m.layer, dir: m.dir });
+  }
+  st.batchDone = st.batchTotal = ms.length;
+  st.playing = false; st.runOnce = false; st.mode = 'idle';
+  uploadCells(); uploadSels();
+  st.solved = isSolved();
+  if (st.solved && st.history.length) st.history.length = 0;
+  logUI.reset(ms.map(moveLabel));
+  logUI.setCur(ms.length);
+  progressUI(); updateAll();
+}
+
 function finishInstant() {
   if (!busy()) return;
-  if (st.cur) { const m = st.cur; st.cur = null; commitMove(m, false); afterCommit(m); }
-  while (st.queue.length) {
-    const m = st.queue.shift();
-    commitMove(m, false);
-    afterCommit(m);
-  }
-  uploadCells(); uploadSels();
-  logUI.setCur(st.batchTotal);
-  st.playing = false; st.runOnce = false;
+  const ms = [];
+  if (st.cur) { ms.push(st.cur); st.cur = null; }
+  while (st.queue.length) ms.push(st.queue.shift());
   const was = st.mode;
-  st.mode = 'idle';
-  st.solved = isSolved();
+  applyInstant(ms);
   if (was === 'scramble') toast('已瞬间打乱');
   else if (was === 'pattern') toast('图案绘制完成，在顶面查看「' + $('patInput').value.trim() + '」');
   else if (st.solved) solvedMoment();
-  updateAll();
 }
 
 /* ================= 相机与输入 ================= */
